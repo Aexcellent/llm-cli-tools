@@ -28,7 +28,48 @@ pip install llm-cli-tools
 
 ## 使用方法
 
+### 通用大模型参数
+
+以下参数适用于与大模型 API 交互的工具：
+
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--model` | 模型名称（如：qwen-plus, gpt-4, deepseek-chat） | 必需 |
+| `--api-key` | API 密钥（未指定则从环境变量读取） | None |
+| `--base-url` | API Base URL（未指定则使用默认值） | None |
+| `--temperature` | 生成温度参数 | 0.6 |
+| `--max-tokens` | 生成的最大 token 数 | 4096 |
+| `--max-workers` | 并发线程数 | 10 |
+
 ### LLM 推理与评判 (`llm-cli`)
+
+**模式：**
+- `inference`: 单轮推理
+- `inference-round`: 多轮推理
+- `judge`: 单轮评判
+- `judge-round`: 多轮评判
+
+**通用参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--mode` | 运行模式（inference, inference-round, judge, judge-round） | 必需 |
+| `--input-path` | 输入文件路径（JSON 或 JSONL 格式） | 必需 |
+| `--output-path` | 输出文件路径（未指定则自动生成） | None |
+| `--preserve-fields` | 从输入数据中保留到结果中的字段列表（逗号分隔） | None |
+
+**多轮模式参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--rounds` | 每个样本获取结果的轮数 | 1 |
+
+**评判模式参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--prompt-file` | 自定义评判 Prompt 文件路径 | None |
+| `--skip-no-output` | 跳过 output 为 None 的样本 | False |
+| `--save-original` | 保存原始输入和输出到结果文件中 | False |
+
+**示例：**
 
 运行单轮推理：
 ```bash
@@ -45,7 +86,7 @@ llm-cli inference-round \
   --model gpt-4 \
   --input-path data/input.jsonl \
   --output-path results/output.jsonl \
-  --num-rounds 3 \
+  --rounds 3 \
   --api-key YOUR_API_KEY
 ```
 
@@ -53,7 +94,7 @@ llm-cli inference-round \
 ```bash
 llm-cli judge \
   --model gpt-4 \
-  --data-path data/input.jsonl \
+  --input-path data/input.jsonl \
   --write-path results/inference.jsonl \
   --output-path results/judgment.jsonl \
   --api-key YOUR_API_KEY
@@ -63,62 +104,134 @@ llm-cli judge \
 ```bash
 llm-cli judge-round \
   --model gpt-4 \
-  --data-path data/input.jsonl \
+  --input-path data/input.jsonl \
   --write-path results/inference.jsonl \
   --output-path results/judgment.jsonl \
-  --num-rounds 3 \
+  --rounds 3 \
   --api-key YOUR_API_KEY
 ```
 
 ### 模型评估 (`llm-eval`)
 
-评估模型输出与预期结果的对比：
+**参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--input-path` | 输入测试文件（JSON 或 JSONL 格式） | test_data.json |
+| `--output-path` | 结果输出文件路径 | outputs.jsonl |
+| `--api-url` | API URL | http://localhost:8101/v1/chat/completions |
+| `--timeout` | API 请求超时时间（秒） | 300 |
+| `--json-mode` | 强制 JSON 输出 | False |
+| `--result-key` | 模型输出中的结果字段名（支持嵌套字段如 'prediction,class'） | auditresult |
+| `--expected-key` | 测试数据中的期望值字段名（支持嵌套字段如 'output,label'） | auditresult |
+| `--eval-mode` | 评估模式：binary, multiclass, regression, 或 exact match | binary |
+| `--only-infer` | 仅运行推理不进行评估 | False |
+| `--only-eval` | 仅评估已有结果 | False |
+| `--resume` | 跳过已存在的 trace_id | False |
+| `--limit` | 限制测试用例数量 | None |
+| `--verbose` | 显示详细日志 | False |
+
+**示例：**
 ```bash
 llm-eval \
-  --input-path results/output.jsonl \
-  --expected-field expected \
-  --output-field generated \
-  --output-path results/evaluation.jsonl
+  --input-path data/input.jsonl \
+  --output-path results/evaluation.jsonl \
+  --model gpt-4 \
+  --api-key YOUR_API_KEY \
+  --eval-mode binary \
+  --result-key auditresult \
+  --expected-key auditresult
 ```
 
 ### 合并 JSONL 文件 (`llm-merge`)
 
-合并多个 JSON 或 JSONL 文件：
+**参数：**
+| 参数 | 说明 |
+|------|------|
+| `input_files` | 输入文件路径（多个文件，可以是 JSON 或 JSONL 格式） |
+| `--output-path` | 输出文件路径（根据扩展名自动选择格式） |
+| `--dedupe` | 根据指定键去重（例如：--dedupe id） |
+| `--dedupe-all` | 根据内容完全去重 |
+| `--verbose` | 显示详细统计信息 |
+
+**示例：**
 ```bash
 llm-merge \
-  --input-files file1.jsonl file2.jsonl file3.json \
-  --output-path merged.jsonl
+  file1.jsonl file2.jsonl file3.json \
+  --output-path merged.jsonl \
+  --dedupe id \
+  --verbose
 ```
 
 ### 转换为 SFT 数据 (`llm-convert`)
 
-将数据转换为监督微调（SFT）格式：
+**参数：**
+| 参数 | 说明 |
+|------|------|
+| `input_files` | 输入文件路径（多个文件，可以是 JSON 或 JSONL 格式） |
+| `--output-path` | 输出文件路径（可多次使用以指定多个输出文件） |
+| `--verbose` | 显示详细处理信息 |
+
+**示例：**
 ```bash
 llm-convert \
-  --input-path data/input.jsonl \
+  input.jsonl \
   --output-path data/sft.jsonl \
-  --input-field prompt \
-  --output-field response
+  --verbose
 ```
 
 ### 构建 DPO 数据 (`llm-dpo`)
 
-构建直接偏好优化（DPO）训练数据：
+**参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `score_file` | 分数文件路径（JSON 或 JSONL 格式） | 必需 |
+| `ref_file` | 参考文件路径（包含 messages 和 output） | 必需 |
+| `--output-path` | 输出文件路径 | 必需 |
+| `--min-margin` | 最小分差阈值 | 20.0 |
+| `--min-chosen-score` | 正样本最低分数阈值 | 60.0 |
+| `--save-filtered` | 保存被过滤的样本日志到指定文件 | None |
+| `--id-key` | ID 字段名 | id |
+| `--round-key` | 轮次字段名 | round |
+| `--verbose` | 显示详细统计信息 | False |
+
+**示例：**
 ```bash
 llm-dpo \
-  --input-path data/input.jsonl \
+  score_data.jsonl \
+  ref_data.jsonl \
   --output-path data/dpo.jsonl \
-  --chosen-field chosen \
-  --rejected-field rejected
+  --min-margin 15 \
+  --min-chosen-score 70 \
+  --verbose
 ```
 
 ### 对比模型指标 (`llm-compare`)
 
-对比多个模型输出的指标：
+**参数：**
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `--current-model-output` | 当前模型输出文件路径（JSONL 格式） | 必需 |
+| `--evaluation-files` | 评估详情文件（包含 ground truth 和其他模型预测） | 必需 |
+| `--difficulty-files` | 难度文件（用于映射和加权） | 必需 |
+| `--result-key` | 模型输出中的结果字段名 | auditresult |
+| `--eval-mode` | 评估模式：binary, multiclass, 或 regression | binary |
+| `--trace-id-key` | trace ID 字段名 | trace_id |
+| `--difficulty-key` | 难度字段名 | difficulty |
+| `--evaluations-key` | 评估字段名 | evaluations |
+| `--ground-truth-key` | 评估中的 ground truth 字段名 | ground_truth |
+| `--predicted-key` | 评估中的预测值字段名 | predicted |
+| `--output-path` | 结果输出文件路径（JSON 格式） | None |
+| `--model-name` | 当前模型的自定义名称 | current_model |
+| `--log-level` | 日志级别：DEBUG, INFO, WARNING, ERROR | INFO |
+
+**示例：**
 ```bash
 llm-compare \
-  --input-files model1_results.jsonl model2_results.jsonl \
-  --output-path comparison.jsonl
+  --current-model-output current_model.jsonl \
+  --evaluation-files eval1.jsonl eval2.jsonl \
+  --difficulty-files diff1.jsonl diff2.jsonl \
+  --output-path comparison.jsonl \
+  --eval-mode binary
 ```
 
 ## 项目结构

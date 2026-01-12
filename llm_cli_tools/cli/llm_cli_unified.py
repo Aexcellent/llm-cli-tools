@@ -365,15 +365,15 @@ def run_inference(args, api_key, base_url):
     max_tokens = args.max_tokens
     preserve_fields = args.preserve_fields
     
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
-    
-    if args.output_file:
-        jsonl_file = output_dir / args.output_file
+    # 处理输出路径
+    if args.output_path:
+        jsonl_file = Path(args.output_path)
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
     else:
         safe_model_name = model_name.replace("-", "_").replace("/", "_")
         base_name = Path(data_path).stem
-        jsonl_file = output_dir / f"{safe_model_name}_{base_name}.jsonl"
+        jsonl_file = Path("results") / f"{safe_model_name}_{base_name}.jsonl"
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("=== 推理模式配置 ===")
@@ -462,17 +462,15 @@ def run_inference_round(args, api_key, base_url):
     num_rounds = args.rounds
     preserve_fields = args.preserve_fields
     
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
-    
-    safe_model_name = model_name.replace("-", "_").replace("/", "_")
-    base_name = Path(data_path).stem
-    
-    # 使用单个输出文件
-    if args.output_file:
-        jsonl_file = output_dir / args.output_file
+    # 处理输出路径
+    if args.output_path:
+        jsonl_file = Path(args.output_path)
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
     else:
-        jsonl_file = output_dir / f"{safe_model_name}_{base_name}_rounds.jsonl"
+        safe_model_name = model_name.replace("-", "_").replace("/", "_")
+        base_name = Path(data_path).stem
+        jsonl_file = Path("results") / f"{safe_model_name}_{base_name}_rounds.jsonl"
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("=== 多轮推理模式配置 ===")
@@ -625,15 +623,15 @@ def run_judge(args, api_key, base_url):
     
     judge_prompt = load_judge_prompt(args.prompt_file)
     
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
-    
-    if args.output_file:
-        jsonl_file = output_dir / args.output_file
+    # 处理输出路径
+    if args.output_path:
+        jsonl_file = Path(args.output_path)
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
     else:
         input_name = Path(data_path).stem
         safe_model_name = model_name.replace("-", "_").replace("/", "_")
-        jsonl_file = output_dir / f"{input_name}_{safe_model_name}_judge.jsonl"
+        jsonl_file = Path("results") / f"{input_name}_{safe_model_name}_judge.jsonl"
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("=== 评判模式配置 ===")
@@ -767,17 +765,15 @@ def run_judge_round(args, api_key, base_url):
     
     judge_prompt = load_judge_prompt(args.prompt_file)
     
-    output_dir = Path(args.output_dir)
-    output_dir.mkdir(exist_ok=True)
-    
-    input_name = Path(data_path).stem
-    safe_model_name = model_name.replace("-", "_").replace("/", "_")
-    
-    # 使用单个输出文件
-    if args.output_file:
-        jsonl_file = output_dir / args.output_file
+    # 处理输出路径
+    if args.output_path:
+        jsonl_file = Path(args.output_path)
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
     else:
-        jsonl_file = output_dir / f"{input_name}_{safe_model_name}_judge_rounds.jsonl"
+        input_name = Path(data_path).stem
+        safe_model_name = model_name.replace("-", "_").replace("/", "_")
+        jsonl_file = Path("results") / f"{input_name}_{safe_model_name}_judge_rounds.jsonl"
+        jsonl_file.parent.mkdir(parents=True, exist_ok=True)
 
     print("=" * 60)
     print("=== 多轮评判模式配置 ===")
@@ -988,18 +984,17 @@ def main():
                         help="运行模式: inference(推理), inference-round(多轮推理), judge(评判), judge-round(多轮评判)")
     
     # 通用参数
-    parser.add_argument("--input-path", type=str, required=True,
+    parser.add_argument("--input-path", type=str, default=None,required=True,
                         help="输入文件路径（JSON 或 JSONL 格式）")
+
     parser.add_argument("--model", type=str, required=True,
                         help="模型名称，如: qwen-plus, gpt-4, deepseek-chat")
     parser.add_argument("--api-key", type=str, default=None,
                         help="API Key（不指定则从环境变量获取）")
     parser.add_argument("--base-url", type=str, default=None,
                         help="API Base URL（不指定则使用默认）")
-    parser.add_argument("--output-dir", type=str, default="results",
-                        help="输出目录（默认: results）")
-    parser.add_argument("--output-file", type=str, default=None,
-                        help="输出文件名（不指定则自动生成）")
+    parser.add_argument("--output-path", type=str, default=None,
+                        help="输出文件路径（不指定则自动生成）")
     parser.add_argument("--max-workers", type=int, default=10,
                         help="并发线程数（默认: 10）")
     parser.add_argument("--temperature", type=float, default=0.6,

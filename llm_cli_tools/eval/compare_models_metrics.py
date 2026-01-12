@@ -2,8 +2,7 @@ import json
 import argparse
 import logging
 from collections import defaultdict
-from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 from llm_cli_tools.utils.file_utils import load_json_or_jsonl
 from llm_cli_tools.utils.nested_utils import get_nested_value
 from llm_cli_tools.utils.normalize import normalize_to_bool, normalize_to_int, normalize_to_str
@@ -339,11 +338,11 @@ def compute_regression_metrics(y_true, y_pred):
 
 def main():
     parser = argparse.ArgumentParser(description="Compare model performance metrics across different difficulty levels")
-    parser.add_argument("--outputs-jsonl", default="outputs.jsonl",
+    parser.add_argument("--current-model-output", required=True,
                         help="Path to current model outputs JSONL file")
-    parser.add_argument("--gt-files", nargs="+", required=True,
+    parser.add_argument("--evaluation-files", nargs="+", required=True,
                         help="Evaluation detail JSON/JSONL files containing ground truth and other model predictions")
-    parser.add_argument("--diff-files", nargs="+", required=True,
+    parser.add_argument("--difficulty-files", nargs="+", required=True,
                         help="Difficulty JSON/JSONL files (used for both mapping and weighting)")
     parser.add_argument("--result-key", default="auditresult",
                         help="Field name for result key in model output")
@@ -359,7 +358,7 @@ def main():
                         help="Field name for ground truth in evaluations")
     parser.add_argument("--predicted-key", default="predicted",
                         help="Field name for predicted value in evaluations")
-    parser.add_argument("--output-file", default=None,
+    parser.add_argument("--output-path", default=None,
                         help="Output file to save results (JSON format)")
     parser.add_argument("--model-name", default=CURRENT_MODEL_NAME,
                         help="Custom name for the current model")
@@ -373,14 +372,14 @@ def main():
     
     logger.info(f"Starting model comparison with evaluation mode: {args.eval_mode}")
     logger.info(f"Current model name: {args.model_name}")
-    logger.info(f"Ground truth files: {args.gt_files}")
-    logger.info(f"Difficulty files: {args.diff_files}")
-    logger.info(f"Outputs file: {args.outputs_jsonl}")
+    logger.info(f"Evaluation files: {args.evaluation_files}")
+    logger.info(f"Difficulty files: {args.difficulty_files}")
+    logger.info(f"Current model output file: {args.current_model_output}")
 
     # Step 1: Load ground truth & other models' predictions (skip null preds)
     logger.info("Loading evaluation details...")
     gt_map, other_model_preds = load_evaluation_details(
-        args.gt_files,
+        args.evaluation_files,
         trace_id_key=args.trace_id_key,
         evaluations_key=args.evaluations_key,
         ground_truth_key=args.ground_truth_key,
@@ -393,7 +392,7 @@ def main():
     # Step 2: Load difficulty map
     logger.info("Loading difficulty labels...")
     diff_map = load_difficulty_map(
-        args.diff_files,
+        args.difficulty_files,
         trace_id_key=args.trace_id_key,
         difficulty_key=args.difficulty_key
     )
@@ -402,7 +401,7 @@ def main():
     # Step 3: Load overall difficulty distribution (for weighting)
     logger.info("Loading overall difficulty distribution from diff files (for weighting)...")
     overall_diff_counts, overall_diff_weights = load_overall_difficulty_distribution(
-        args.diff_files,
+        args.difficulty_files,
         difficulty_key=args.difficulty_key
     )
     total_overall = sum(overall_diff_counts.values())
@@ -411,11 +410,11 @@ def main():
         logger.info(f"  {d}: {cnt} ({overall_diff_weights[d]:.4f})")
 
     # Step 4: Load current model predictions (skip missing/empty outputs)
-    logger.info(f"Loading current model predictions from {args.outputs_jsonl}...")
+    logger.info(f"Loading current model predictions from {args.current_model_output}...")
     current_preds = {}
     
     try:
-        with open(args.outputs_jsonl, "r", encoding="utf-8") as f:
+        with open(args.current_model_output, "r", encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 if not line.strip():
                     continue
@@ -628,8 +627,8 @@ def main():
     print(f"{'='*90}")
 
     # Step 10: Save results to file if specified
-    if args.output_file:
-        logger.info(f"Saving results to {args.output_file}...")
+    if args.output_path:
+        logger.info(f"Saving results to {args.output_path}...")
         output_data = {
             "eval_mode": args.eval_mode,
             "model_name": args.model_name,
@@ -642,12 +641,12 @@ def main():
             "weighted_overall_metrics": weighted_results
         }
         try:
-            with open(args.output_file, 'w', encoding='utf-8') as f:
+            with open(args.output_path, 'w', encoding='utf-8') as f:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
-            logger.info(f"Results saved successfully to: {args.output_file}")
-            print(f"\nResults saved to: {args.output_file}")
+            logger.info(f"Results saved successfully to: {args.output_path}")
+            print(f"\nResults saved to: {args.output_path}")
         except Exception as e:
-            logger.error(f"Failed to save results to {args.output_file}: {e}")
+            logger.error(f"Failed to save results to {args.output_path}: {e}")
             raise
     
     logger.info("Model comparison completed successfully")

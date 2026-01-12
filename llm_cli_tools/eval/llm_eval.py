@@ -415,30 +415,30 @@ def main():
         epilog="""
 使用示例:
   # 二分类评估（默认）
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --expected-key auditresult
+  python llm_eval.py --input-path test.json --output-path results.jsonl --expected-key auditresult
   
   # 多分类评估
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --eval-mode multiclass --expected-key category
+  python llm_eval.py --input-path test.json --output-path results.jsonl --eval-mode multiclass --expected-key category
   
   # 回归评估
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --eval-mode regression --expected-key score
+  python llm_eval.py --input-path test.json --output-path results.jsonl --eval-mode regression --expected-key score
   
   # 精确匹配评估
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --eval-mode exact --expected-key answer
+  python llm_eval.py --input-path test.json --output-path results.jsonl --eval-mode exact --expected-key answer
   
   # 使用嵌套字段（逗号分隔）
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --result-key prediction,class --expected-key output,label
+  python llm_eval.py --input-path test.json --output-path results.jsonl --result-key prediction,class --expected-key output,label
   
   # 仅推理不评估
-  python llm_eval.py --test-file test.json --output-jsonl results.jsonl --only-infer
+  python llm_eval.py --input-path test.json --output-path results.jsonl --only-infer
   
   # 仅评估已有结果
-  python llm_eval.py --output-jsonl results.jsonl --only-eval --eval-mode binary
+  python llm_eval.py --output-path results.jsonl --only-eval --eval-mode binary
         """
     )
     # I/O
-    parser.add_argument("--test-file", type=str, default="/data/user/jdy/Qwen30B_doc_verifi/test_data/test_data.json", help="Input test file (JSON array)")
-    parser.add_argument("--output-jsonl", type=str, default="outputs.jsonl", help="Raw outputs in JSONL")
+    parser.add_argument("--input-path", type=str, default="/data/user/jdy/Qwen30B_doc_verifi/test_data/test_data.json", help="Input test file (JSON array)")
+    parser.add_argument("--output-path", type=str, default="outputs.jsonl", help="Raw outputs in JSONL")
 
     # API
     parser.add_argument("--api-url", type=str, default=DEFAULT_API_URL)
@@ -480,16 +480,16 @@ def main():
         headers["Authorization"] = f"Bearer {args.api_key}"
 
     if args.only_eval:
-        evaluate_from_jsonl(args.output_jsonl, args.result_key, args.eval_mode)
+        evaluate_from_jsonl(args.output_path, args.result_key, args.eval_mode)
         return
 
     # Load and filter test cases
-    test_cases = load_test_data(args.test_file, args.limit)
-    completed_ids = get_completed_trace_ids(args.output_jsonl) if args.resume else set()
+    test_cases = load_test_data(args.input_path, args.limit)
+    completed_ids = get_completed_trace_ids(args.output_path) if args.resume else set()
 
     # Run parallel inference
     run_inference_parallel(
-        test_cases, completed_ids, args.output_jsonl,
+        test_cases, completed_ids, args.output_path,
         args.api_url, headers, args.model,
         args.temperature, args.max_tokens, args.json_mode, args.timeout,
         args.workers, args.expected_key
@@ -497,7 +497,7 @@ def main():
 
     # Evaluate and print final stats (unless only-infer)
     if not args.only_infer:
-        evaluate_from_jsonl(args.output_jsonl, args.result_key, args.eval_mode)
+        evaluate_from_jsonl(args.output_path, args.result_key, args.eval_mode)
 
 
 if __name__ == "__main__":

@@ -28,7 +28,49 @@ pip install llm-cli-tools
 
 ## Usage
 
+### Common LLM Parameters
+
+The following parameters are available for tools that interact with LLM APIs:
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--model` | Model name (e.g., qwen-plus, gpt-4, deepseek-chat) | Required |
+| `--api-key` | API Key (reads from environment variable if not specified) | None |
+| `--base-url` | API Base URL (uses default if not specified) | None |
+| `--temperature` | Temperature parameter for generation | 0.6 |
+| `--max-tokens` | Maximum number of tokens to generate | 4096 |
+| `--max-workers` | Number of parallel threads | 10 |
+
 ### LLM Inference and Judgment (`llm-cli`)
+
+**Modes:**
+- `inference`: Single-round inference
+- `inference-round`: Multi-round inference
+- `judge`: Single-round judgment
+- `judge-round`: Multi-round judgment
+
+**Common Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--mode` | Running mode (inference, inference-round, judge, judge-round) | Required |
+| `--input-path` | Input file path (JSON or JSONL format) | Required |
+| `--output-path` | Output file path (auto-generated if not specified) | None |
+| `--preserve-fields` | Fields to preserve from input data (comma-separated) | None |
+
+**Multi-round Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--rounds` | Number of rounds to get results for each sample | 1 |
+
+**Judgment Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--write-path` | Path to inference results file for judgment | Required for judge modes |
+| `--prompt-file` | Custom judgment prompt file path | None |
+| `--skip-no-output` | Skip samples with None output | False |
+| `--save-original` | Save original input and output to results | False |
+
+**Examples:**
 
 Run single-round inference:
 ```bash
@@ -45,7 +87,7 @@ llm-cli inference-round \
   --model gpt-4 \
   --input-path data/input.jsonl \
   --output-path results/output.jsonl \
-  --num-rounds 3 \
+  --rounds 3 \
   --api-key YOUR_API_KEY
 ```
 
@@ -53,8 +95,7 @@ Run single-round judgment:
 ```bash
 llm-cli judge \
   --model gpt-4 \
-  --data-path data/input.jsonl \
-  --write-path results/inference.jsonl \
+  --input-path data/input.jsonl \
   --output-path results/judgment.jsonl \
   --api-key YOUR_API_KEY
 ```
@@ -63,62 +104,133 @@ Run multi-round judgment:
 ```bash
 llm-cli judge-round \
   --model gpt-4 \
-  --data-path data/input.jsonl \
-  --write-path results/inference.jsonl \
+  --input-path data/input.jsonl \
   --output-path results/judgment.jsonl \
-  --num-rounds 3 \
+  --rounds 3 \
   --api-key YOUR_API_KEY
 ```
 
 ### Model Evaluation (`llm-eval`)
 
-Evaluate model outputs against expected results:
+**Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--input-path` | Input test file (JSON or JSONL format) | test_data.json |
+| `--output-path` | Output file path for results | outputs.jsonl |
+| `--api-url` | API URL | http://localhost:8101/v1/chat/completions |
+| `--timeout` | API request timeout (seconds) | 300 |
+| `--json-mode` | Force JSON output | False |
+| `--result-key` | Result field name in model output (supports nested fields like 'prediction,class') | auditresult |
+| `--expected-key` | Expected value field name in test data (supports nested fields like 'output,label') | auditresult |
+| `--eval-mode` | Evaluation mode: binary, multiclass, regression, or exact match | binary |
+| `--only-infer` | Only run inference without evaluation | False |
+| `--only-eval` | Only evaluate existing results | False |
+| `--resume` | Skip existing trace_id | False |
+| `--limit` | Limit number of test cases | None |
+| `--verbose` | Show detailed logs | False |
+
+**Example:**
 ```bash
 llm-eval \
-  --input-path results/output.jsonl \
-  --expected-field expected \
-  --output-field generated \
-  --output-path results/evaluation.jsonl
+  --input-path data/input.jsonl \
+  --output-path results/evaluation.jsonl \
+  --model gpt-4 \
+  --api-key YOUR_API_KEY \
+  --eval-mode binary \
+  --result-key auditresult \
+  --expected-key auditresult
 ```
 
 ### Merge JSONL Files (`llm-merge`)
 
-Merge multiple JSON or JSONL files:
+**Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `input_files` | Input file paths (multiple files, can be JSON or JSONL format) |
+| `--output-path` | Output file path (format auto-detected by extension) |
+| `--dedupe` | Deduplicate by specified key (e.g., --dedupe id) |
+| `--dedupe-all` | Deduplicate by complete content |
+| `--verbose` | Show detailed statistics |
+
+**Example:**
 ```bash
 llm-merge \
-  --input-files file1.jsonl file2.jsonl file3.json \
-  --output-path merged.jsonl
+  file1.jsonl file2.jsonl file3.json \
+  --output-path merged.jsonl \
+  --dedupe id \
+  --verbose
 ```
 
 ### Convert to SFT Data (`llm-convert`)
 
-Convert data to Supervised Fine-Tuning (SFT) format:
+**Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `input_files` | Input file paths (multiple files, can be JSON or JSONL format) |
+| `--output-path` | Output file path (can be specified multiple times for multiple outputs) |
+| `--verbose` | Show detailed processing information |
+
+**Example:**
 ```bash
 llm-convert \
-  --input-path data/input.jsonl \
+  input.jsonl \
   --output-path data/sft.jsonl \
-  --input-field prompt \
-  --output-field response
+  --verbose
 ```
 
 ### Build DPO Data (`llm-dpo`)
 
-Build Direct Preference Optimization (DPO) training data:
+**Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `score_file` | Score file path (JSON or JSONL format) | Required |
+| `ref_file` | Reference file path containing messages and output | Required |
+| `--output-path` | Output file path | Required |
+| `--min-margin` | Minimum score difference threshold | 20.0 |
+| `--min-chosen-score` | Minimum score for chosen samples | 60.0 |
+| `--save-filtered` | Save filtered samples log to specified file | None |
+| `--id-key` | ID field name | id |
+| `--round-key` | Round field name | round |
+| `--verbose` | Show detailed statistics | False |
+
+**Example:**
 ```bash
 llm-dpo \
-  --input-path data/input.jsonl \
+  score_data.jsonl \
+  ref_data.jsonl \
   --output-path data/dpo.jsonl \
-  --chosen-field chosen \
-  --rejected-field rejected
+  --min-margin 15 \
+  --min-chosen-score 70 \
+  --verbose
 ```
 
 ### Compare Model Metrics (`llm-compare`)
 
-Compare metrics across multiple model outputs:
+**Parameters:**
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--current-model-output` | Path to current model outputs JSONL file | Required |
+| `--evaluation-files` | Evaluation detail files containing ground truth and predictions | Required |
+| `--difficulty-files` | Difficulty files (used for mapping and weighting) | Required |
+| `--result-key` | Field name for result key in model output | auditresult |
+| `--eval-mode` | Evaluation mode: binary, multiclass, or regression | binary |
+| `--trace-id-key` | Field name for trace ID | trace_id |
+| `--difficulty-key` | Field name for difficulty | difficulty |
+| `--evaluations-key` | Field name for evaluations | evaluations |
+| `--ground-truth-key` | Field name for ground truth in evaluations | ground_truth |
+| `--predicted-key` | Field name for predicted value in evaluations | predicted |
+| `--output-path` | Output file to save results (JSON format) | None |
+| `--model-name` | Custom name for the current model | current_model |
+| `--log-level` | Logging level: DEBUG, INFO, WARNING, ERROR | INFO |
+
+**Example:**
 ```bash
 llm-compare \
-  --input-files model1_results.jsonl model2_results.jsonl \
-  --output-path comparison.jsonl
+  --current-model-output current_model.jsonl \
+  --evaluation-files eval1.jsonl eval2.jsonl \
+  --difficulty-files diff1.jsonl diff2.jsonl \
+  --output-path comparison.jsonl \
+  --eval-mode binary
 ```
 
 ## Project Structure

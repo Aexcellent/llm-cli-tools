@@ -191,19 +191,19 @@ def main():
         epilog="""
 使用示例:
   # 合并两个 JSONL 文件
-  python merge_jsonl.py file1.jsonl file2.jsonl -o merged.jsonl
+  python merge_jsonl.py file1.jsonl file2.jsonl --output-path merged.jsonl
   
   # 合并不同类型的文件（JSON 和 JSONL）
-  python merge_jsonl.py data.json results.jsonl -o merged.json
+  python merge_jsonl.py data.json results.jsonl --output-path merged.json
   
   # 合并多个文件并去重（根据 id 字段）
-  python merge_jsonl.py file1.jsonl file2.jsonl file3.jsonl -o merged.jsonl --dedupe id
+  python merge_jsonl.py file1.jsonl file2.jsonl file3.jsonl --output-path merged.jsonl --dedupe id
   
   # 合并文件并完全去重（根据内容）
-  python merge_jsonl.py file1.jsonl file2.jsonl -o merged.jsonl --dedupe-all
+  python merge_jsonl.py file1.jsonl file2.jsonl --output-path merged.jsonl --dedupe-all
   
   # 合并文件并保留统计信息
-  python merge_jsonl.py file1.jsonl file2.jsonl -o merged.jsonl --verbose
+  python merge_jsonl.py file1.jsonl file2.jsonl --output-path merged.jsonl --verbose
         """
     )
     
@@ -214,7 +214,7 @@ def main():
     )
     
     parser.add_argument(
-        '-o', '--output',
+        '-o','--output-path',
         required=True,
         help='输出文件路径（根据扩展名自动选择 JSON 或 JSONL 格式）'
     )
@@ -282,9 +282,9 @@ def main():
     
     # 保存合并后的数据
     try:
-        save_file(merged_data, args.output)
+        save_file(merged_data, args.output_path)
     except Exception as e:
-        print(f"错误: 保存文件失败 {args.output}: {e}", file=sys.stderr)
+        print(f"错误: 保存文件失败 {args.output_path}: {e}", file=sys.stderr)
         sys.exit(1)
     
     # 输出统计信息
@@ -303,7 +303,7 @@ def main():
     if args.dedupe or args.dedupe_all:
         print(f"去重后减少: {original_count - len(merged_data)} 条")
     
-    print(f"\n已写入: {args.output}")
+    print(f"\n已写入: {args.output_path}")
     print("=" * 60)
 
 

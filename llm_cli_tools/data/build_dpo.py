@@ -234,19 +234,19 @@ def main():
         epilog="""
 使用示例:
   # 基本用法
-  python build_dpo.py score_data.jsonl ref_data.jsonl -o dpo_output.jsonl
+  python build_dpo.py score_data.jsonl ref_data.jsonl --output-path dpo_output.jsonl
   
   # 自定义阈值
-  python build_dpo.py score_data.jsonl ref_data.jsonl -o dpo_output.jsonl --min-margin 15 --min-chosen-score 70
+  python build_dpo.py score_data.jsonl ref_data.jsonl --output-path dpo_output.jsonl --min-margin 15 --min-chosen-score 70
   
   # 保存过滤日志
-  python build_dpo.py score_data.jsonl ref_data.jsonl -o dpo_output.jsonl --save-filtered filtered_log.jsonl
+  python build_dpo.py score_data.jsonl ref_data.jsonl --output-path dpo_output.jsonl --save-filtered filtered_log.jsonl
   
   # 使用 JSON 格式输入
-  python build_dpo.py score_data.json ref_data.json -o dpo_output.json
+  python build_dpo.py score_data.json ref_data.json --output-path dpo_output.json
   
   # 显示详细统计信息
-  python build_dpo.py score_data.jsonl ref_data.jsonl -o dpo_output.jsonl --verbose
+  python build_dpo.py score_data.jsonl ref_data.jsonl --output-path dpo_output.jsonl --verbose
 
 数据格式说明:
   分数文件格式:
@@ -294,7 +294,7 @@ def main():
     )
     
     parser.add_argument(
-        '-o', '--output',
+        '--output-path',
         required=True,
         help='输出文件路径（根据扩展名自动选择 JSON 或 JSONL 格式）'
     )
@@ -375,7 +375,7 @@ def main():
     print("\nStep 4: 保存结果...")
     
     if dpo_list:
-        save_data(args.output, dpo_list)
+        save_data(args.output_path, dpo_list)
     else:
         print("⚠️ 没有生成有效的 DPO 数据对")
     

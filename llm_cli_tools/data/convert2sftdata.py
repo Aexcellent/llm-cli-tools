@@ -220,19 +220,19 @@ def main():
         epilog="""
 使用示例:
   # 转换单个 JSONL 文件
-  python convert2sftdata.py input.jsonl -o output.jsonl
+  python convert2sftdata.py input.jsonl --output-path output.jsonl
   
   # 转换单个 JSON 文件
-  python convert2sftdata.py input.json -o output.json
+  python convert2sftdata.py input.json --output-path output.json
   
   # 转换多个文件
-  python convert2sftdata.py file1.jsonl file2.jsonl -o output1.jsonl -o output2.jsonl
+  python convert2sftdata.py file1.jsonl file2.jsonl --output-path output1.jsonl --output-path output2.jsonl
   
   # 转换文件并显示详细统计
-  python convert2sftdata.py input.jsonl -o output.jsonl --verbose
+  python convert2sftdata.py input.jsonl --output-path output.jsonl --verbose
   
   # 转换 JSONL 为 JSON 格式
-  python convert2sftdata.py input.jsonl -o output.json
+  python convert2sftdata.py input.jsonl --output-path output.json
 
 数据格式说明:
   输入格式:
@@ -262,7 +262,7 @@ def main():
     )
     
     parser.add_argument(
-        '-o', '--output',
+        '-o','--output-path',
         action='append',
         required=True,
         help='输出文件路径（根据扩展名自动选择 JSON 或 JSONL 格式，可多次使用以指定多个输出文件）'
@@ -277,8 +277,8 @@ def main():
     args = parser.parse_args()
     
     # 检查输入文件数量和输出文件数量是否匹配
-    if len(args.input_files) != len(args.output):
-        print(f"错误: 输入文件数量 ({len(args.input_files)}) 和输出文件数量 ({len(args.output)}) 不匹配", file=sys.stderr)
+    if len(args.input_files) != len(args.output_path):
+        print(f"错误: 输入文件数量 ({len(args.input_files)}) 和输出文件数量 ({len(args.output_path)}) 不匹配", file=sys.stderr)
         sys.exit(1)
     
     # 检查输入文件是否存在
@@ -291,7 +291,7 @@ def main():
     total_processed = 0
     file_stats = []
     
-    for input_file, output_file in zip(args.input_files, args.output):
+    for input_file, output_file in zip(args.input_files, args.output_path):
         try:
             input_type = detect_file_type(input_file)
             output_ext = Path(output_file).suffix.lower()
