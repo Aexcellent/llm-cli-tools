@@ -388,9 +388,7 @@ def run_inference(args, api_key, base_url):
         print(f"保留字段: {preserve_fields}")
     print("=" * 60)
 
-    with open(data_path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-
+    data = ensure_ids_and_save(data_path)
     test_items = prepare_inference_tasks(data, preserve_fields=preserve_fields)
     print(f"Total items: {len(test_items)}")
 
@@ -648,18 +646,7 @@ def run_judge(args, api_key, base_url):
         print(f"保留字段: {preserve_fields}")
     print("=" * 60)
 
-    data = []
-    with open(data_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                print(f"警告：第 {line_num} 行解析失败，已跳过")
-                continue
-
+    data = ensure_ids_and_save(data_path)
     print(f"读取数据行数: {len(data)}")
 
     test_items, skipped_no_output, skipped_no_input = prepare_judge_tasks(
@@ -791,18 +778,7 @@ def run_judge_round(args, api_key, base_url):
         print(f"保留字段: {preserve_fields}")
     print("=" * 60)
 
-    data = []
-    with open(data_path, "r", encoding="utf-8") as f:
-        for line_num, line in enumerate(f, 1):
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                data.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                print(f"警告：第 {line_num} 行解析失败，已跳过")
-                continue
-
+    data = ensure_ids_and_save(data_path)
     print(f"读取数据行数: {len(data)}")
 
     test_items, skipped_no_output, skipped_no_input = prepare_judge_tasks(
