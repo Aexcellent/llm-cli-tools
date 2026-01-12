@@ -12,15 +12,8 @@ from openai import OpenAI
 # 线程安全写入锁
 file_lock = threading.Lock()
 
-# 默认评判 Prompt
-DEFAULT_JUDGE_PROMPT = """
-你是一个专业的评测专家，请对以下回答进行评分。
-
-## 输入数据：
-{data}
-
-## 模型回答：
-{write}
+# 默认评判 Prompt（多轮对话格式）
+DEFAULT_JUDGE_PROMPT = """你是一个专业的评测专家，请对模型回答进行评分。
 
 ## 评分标准：
 - 准确性（0-10分）
@@ -277,25 +270,50 @@ def get_api_config(args):
     return api_key, base_url
 
 
-def prepare_inference_tasks(data, ensure_ids=False):
-    """准备推理任务"""
+def prepare_inference_tasks(data, preserve_fields=None):
+    """准备推理任务
+    
+    支持两种数据格式：
+    1. 包含 messages 字段的数据（直接使用）
+    2. 包含 instruction 和 input 字段的数据（转换为 messages 格式）
+    """
     test_items = []
+    
+    # 解析需要保留的字段
+    preserve_fields_list = []
+    if preserve_fields:
+        preserve_fields_list = [field.strip() for field in preserve_fields.split(",")]
+    
     for item in data:
         item_id = item.get("id")
         if item_id is None:
             continue
-            
-        messages = [
-            {"role": "system", "content": item.get("instruction", "")},
-            {"role": "user", "content": item.get("input", "")}
-        ]
-        test_items.append({"id": item_id, "messages": messages})
+        
+        # 检查是否包含 messages 字段
+        if "messages" in item:
+            # 直接使用现有的 messages
+            messages = item["messages"]
+        else:
+            # 从 instruction 和 input 构造 messages
+            messages = [
+                {"role": "system", "content": item.get("instruction", "")},
+                {"role": "user", "content": item.get("input", "")}
+            ]
+        
+        task_item = {"id": item_id, "messages": messages}
+        
+        # 保留用户指定的字段
+        for field in preserve_fields_list:
+            if field in item:
+                task_item[field] = item[field]
+        
+        test_items.append(task_item)
     
     return test_items
 
 
 def prepare_judge_tasks(data, judge_prompt, skip_no_output=False, save_original=False, preserve_fields=None):
-    """准备评判任务"""
+    """准备评判任务（使用多轮对话格式）"""
     test_items = []
     skipped_no_output = 0
     skipped_no_input = 0
@@ -306,32 +324,25 @@ def prepare_judge_tasks(data, judge_prompt, skip_no_output=False, save_original=
         preserve_fields_list = [field.strip() for field in preserve_fields.split(",")]
     
     for item in data:
-        input_text = None
-        for message in item.get("messages", []):
-            if message.get('role') == "user":
-                input_text = message.get('content', "")
-                break
-        
-        if not input_text:
-            skipped_no_input += 1
-            continue
-        
+
         output_text = item.get("output")
         
         if skip_no_output and not output_text:
             skipped_no_output += 1
             continue
         
-        prompt = judge_prompt.replace('{data}', input_text).replace('{write}', output_text or "")
-        
+        # 构造多轮对话格式的 messages
         messages = [
-            {"role": "user", "content": prompt}
+            *item.get("messages", []),
+            {"role": "assistant", "content": output_text or ""},
+            {"role": "system", "content": judge_prompt},
+
         ]
         
         task_item = {
             "id": item.get("id"),
             "messages": messages,
-            "original_input": input_text if save_original else None,
+            "original_input": json.dumps(item.get("messages", []), ensure_ascii=False) if save_original else None,
             "original_output": output_text if save_original else None
         }
         
@@ -380,7 +391,7 @@ def run_inference(args, api_key, base_url):
     with open(data_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    test_items = prepare_inference_tasks(data)
+    test_items = prepare_inference_tasks(data, preserve_fields=preserve_fields)
     print(f"Total items: {len(test_items)}")
 
     processed_ids = load_processed_ids(jsonl_file)
@@ -478,7 +489,7 @@ def run_inference_round(args, api_key, base_url):
     print("=" * 60)
 
     data = ensure_ids_and_save(data_path)
-    test_items = prepare_inference_tasks(data)
+    test_items = prepare_inference_tasks(data, preserve_fields=preserve_fields)
     
     print(f"Total samples: {len(test_items)}")
     print(f"Total tasks: {len(test_items) * num_rounds} (每个样本 {num_rounds} 轮)")
