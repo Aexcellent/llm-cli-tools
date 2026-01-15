@@ -46,6 +46,7 @@ llm-merge = "llm_cli_tools.data.merge_jsonl:main"
 llm-convert = "llm_cli_tools.data.convert2sftdata:main"
 llm-dpo = "llm_cli_tools.data.build_dpo:main"
 llm-compare = "llm_cli_tools.eval.compare_models_metrics:main"
+llm-clean = "llm_cli_tools.data.clean_failed_data:main"
 
 [project.urls]
 Homepage = "https://github.com/aexcellent/llm-cli-tools"

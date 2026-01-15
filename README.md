@@ -161,6 +161,21 @@ llm-merge \
   --verbose
 ```
 
+### Clean Failed Data (`llm-clean`)
+
+**Parameters:**
+| Parameter | Description |
+|-----------|-------------|
+| `input_file` | Input file path (JSON or JSONL format) |
+| `--output-path` | Output file path (defaults to input filename with _cleaned suffix) |
+| `--overwrite` | Overwrite original file (creates backup automatically) |
+| `--verbose` | Show detailed information |
+
+**Example:**
+```bash
+llm-clean input.jsonl --output-path cleaned.jsonl --verbose
+```
+
 ### Convert to SFT Data (`llm-convert`)
 
 **Parameters:**

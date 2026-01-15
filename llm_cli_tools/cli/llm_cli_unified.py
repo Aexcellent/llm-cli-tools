@@ -577,7 +577,7 @@ def run_inference_round(args, api_key, base_url):
     # 按轮次统计
     print(f"\n=== 按轮次统计 ===")
     for round_num in range(1, num_rounds + 1):
-        round_results = [r for r in final_results if r.get("judge_round") == round_num]
+        round_results = [r for r in final_results if r.get("round") == round_num]
         round_success = sum(1 for r in round_results if r["success"])
         round_total = len(round_results)
         if round_total > 0:

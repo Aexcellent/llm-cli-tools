@@ -162,6 +162,21 @@ llm-merge \
   --verbose
 ```
 
+### 清理失败数据 (`llm-clean`)
+
+**参数：**
+| 参数 | 说明 |
+|------|------|
+| `input_file` | 输入文件路径（JSON 或 JSONL 格式） |
+| `--output-path` | 输出文件路径（不指定则使用原文件名添加 _cleaned 后缀） |
+| `--overwrite` | 覆盖原文件（会自动创建备份） |
+| `--verbose` | 显示详细信息 |
+
+**示例：**
+```bash
+llm-clean input.jsonl --output-path cleaned.jsonl --verbose
+```
+
 ### 转换为 SFT 数据 (`llm-convert`)
 
 **参数：**
