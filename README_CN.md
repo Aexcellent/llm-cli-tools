@@ -165,16 +165,21 @@ llm-merge \
 ### 清理失败数据 (`llm-clean`)
 
 **参数：**
-| 参数 | 说明 |
-|------|------|
-| `input_file` | 输入文件路径（JSON 或 JSONL 格式） |
-| `--output-path` | 输出文件路径（不指定则使用原文件名添加 _cleaned 后缀） |
-| `--overwrite` | 覆盖原文件（会自动创建备份） |
-| `--verbose` | 显示详细信息 |
+| 参数 | 说明 | 默认值 |
+|------|------|--------|
+| `input_file` | 输入文件路径（JSON 或 JSONL 格式） | 必需 |
+| `--check-fields` | 要检查的字段列表（逗号分隔），值为 None、False 或 "null" 时删除 | output |
+| `--output-path` | 输出文件路径（不指定则使用原文件名添加 _cleaned 后缀） | None |
+| `--overwrite` | 覆盖原文件（会自动创建备份） | False |
+| `--verbose` | 显示详细信息 | False |
 
 **示例：**
 ```bash
-llm-clean input.jsonl --output-path cleaned.jsonl --verbose
+# 使用默认检查字段（output）
+llm-clean input.jsonl --output-path cleaned.jsonl
+
+# 检查多个字段
+llm-clean input.jsonl --check-fields output,score --output-path cleaned.jsonl --verbose
 ```
 
 ### 转换为 SFT 数据 (`llm-convert`)
