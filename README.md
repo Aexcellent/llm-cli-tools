@@ -213,6 +213,8 @@ llm-convert \
 | `--round-key` | Round field name | round |
 | `--verbose` | Show detailed statistics | False |
 
+**Note:** For each sample ID, the highest-scoring output is used as `chosen`, and all other outputs that meet the margin threshold are used as `rejected`. This means a single sample can generate multiple DPO pairs with the same `instruction`, `input`, and `chosen` but different `rejected` outputs.
+
 **Example:**
 ```bash
 llm-dpo \

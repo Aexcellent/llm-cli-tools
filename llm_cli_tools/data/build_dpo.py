@@ -127,7 +127,8 @@ def build_dpo_dataset(score_data, ref_map, min_margin, min_chosen_score,
         "filtered_small_margin": 0,
         "filtered_bad_chosen": 0,
         "filtered_missing_ref": 0,
-        "filtered_single_item": 0
+        "filtered_single_item": 0,
+        "total_rejected": 0
     }
     
     for id_val, items in groups.items():
@@ -145,64 +146,90 @@ def build_dpo_dataset(score_data, ref_map, min_margin, min_chosen_score,
         items_sorted = sorted(items, key=lambda x: x.get('score', 0), reverse=True)
         
         chosen_meta = items_sorted[0]
-        rejected_meta = items_sorted[-1]
-        
         chosen_score = chosen_meta.get('score', 0)
-        rejected_score = rejected_meta.get('score', 0)
-        score_diff = chosen_score - rejected_score
         
-        # --- 过滤逻辑 ---
-        reason = None
-        
-        # 1. 检查分差
-        if score_diff < min_margin:
-            stats["filtered_small_margin"] += 1
-            reason = f"Margin too small ({score_diff} < {min_margin})"
-        
-        # 2. 检查正样本质量
-        elif chosen_score < min_chosen_score:
+        # 检查正样本质量
+        if chosen_score < min_chosen_score:
             stats["filtered_bad_chosen"] += 1
             reason = f"Chosen score too low ({chosen_score} < {min_chosen_score})"
-        
-        # 3. 检查参考文件中是否存在对应的文本数据
-        else:
-            chosen_key = (id_val, chosen_meta.get(round_key))
-            rejected_key = (id_val, rejected_meta.get(round_key))
-            if chosen_key not in ref_map or rejected_key not in ref_map:
-                stats["filtered_missing_ref"] += 1
-                reason = "Missing reference text (output/messages)"
-        
-        if reason:
-            # 记录被过滤的样本以便调试
             filtered_list.append({
                 "id": id_val,
                 "reason": reason,
                 "chosen_score": chosen_score,
-                "rejected_score": rejected_score,
-                "rounds": [chosen_meta.get(round_key), rejected_meta.get(round_key)]
+                "rounds": [chosen_meta.get(round_key)]
             })
             continue
-
-        # --- 构建有效 DPO 对 ---
-        chosen_ref = ref_map[chosen_key]
-        rejected_ref = ref_map[rejected_key]
         
+        # 检查 chosen 的参考数据是否存在
+        chosen_key = (id_val, chosen_meta.get(round_key))
+        if chosen_key not in ref_map:
+            stats["filtered_missing_ref"] += 1
+            reason = "Missing chosen reference text (output/messages)"
+            filtered_list.append({
+                "id": id_val,
+                "reason": reason,
+                "chosen_score": chosen_score,
+                "chosen_round": chosen_meta.get(round_key)
+            })
+            continue
+        
+        chosen_ref = ref_map[chosen_key]
         instruction, input_ = get_prompt_from_messages(chosen_ref['messages'])
         
-        dpo_item = {
-            "instruction": instruction, 
-            "input": input_,
-            "chosen": chosen_ref['output'],
-            "rejected": rejected_ref['output'],
-            "id": id_val,
-            "chosen_round": chosen_meta.get(round_key),
-            "rejected_round": rejected_meta.get(round_key),
-            "chosen_score": chosen_score,
-            "rejected_score": rejected_score,
-            "margin": score_diff
-        }
-        dpo_list.append(dpo_item)
-        stats["valid_pairs"] += 1
+        # 遍历其他所有样本作为 rejected
+        rejected_count = 0
+        for rejected_meta in items_sorted[1:]:
+            rejected_score = rejected_meta.get('score', 0)
+            score_diff = chosen_score - rejected_score
+            
+            # 检查分差
+            if score_diff < min_margin:
+                stats["filtered_small_margin"] += 1
+                if verbose:
+                    filtered_list.append({
+                        "id": id_val,
+                        "reason": f"Margin too small ({score_diff} < {min_margin})",
+                        "chosen_score": chosen_score,
+                        "rejected_score": rejected_score,
+                        "chosen_round": chosen_meta.get(round_key),
+                        "rejected_round": rejected_meta.get(round_key)
+                    })
+                continue
+            
+            # 检查 rejected 的参考数据是否存在
+            rejected_key = (id_val, rejected_meta.get(round_key))
+            if rejected_key not in ref_map:
+                stats["filtered_missing_ref"] += 1
+                if verbose:
+                    filtered_list.append({
+                        "id": id_val,
+                        "reason": "Missing rejected reference text (output/messages)",
+                        "chosen_score": chosen_score,
+                        "rejected_score": rejected_score,
+                        "chosen_round": chosen_meta.get(round_key),
+                        "rejected_round": rejected_meta.get(round_key)
+                    })
+                continue
+            
+            # 构建有效 DPO 对
+            rejected_ref = ref_map[rejected_key]
+            dpo_item = {
+                "instruction": instruction, 
+                "input": input_,
+                "chosen": chosen_ref['output'],
+                "rejected": rejected_ref['output'],
+                "id": id_val,
+                "chosen_round": chosen_meta.get(round_key),
+                "rejected_round": rejected_meta.get(round_key),
+                "chosen_score": chosen_score,
+                "rejected_score": rejected_score,
+                "margin": score_diff
+            }
+            dpo_list.append(dpo_item)
+            stats["valid_pairs"] += 1
+            rejected_count += 1
+        
+        stats["total_rejected"] += rejected_count
 
     # 打印统计
     print(f"\n=== 构建结果 ===")
@@ -213,6 +240,8 @@ def build_dpo_dataset(score_data, ref_map, min_margin, min_chosen_score,
     print(f"   - 分差不足: {stats['filtered_small_margin']}")
     print(f"   - 正样本分低: {stats['filtered_bad_chosen']}")
     print(f"   - 缺失文本数据: {stats['filtered_missing_ref']}")
+    print(f"📊 总 rejected 数: {stats['total_rejected']}")
+    print(f"📊 平均每组 rejected 数: {stats['total_rejected'] / max(1, stats['total_groups'] - stats['filtered_single_item']):.2f}")
     
     return dpo_list, filtered_list
 
@@ -280,6 +309,9 @@ def main():
       "rejected_score": 45.2,
       "margin": 40.3
     }
+  
+  注意: 对于每个样本 ID，得分最高的输出作为 chosen，其他满足分差阈值的输出都作为 rejected。
+       这意味着同一样本可以生成多条 DPO 数据，它们的 instruction、input 和 chosen 相同，但 rejected 不同。
         """
     )
     

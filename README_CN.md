@@ -214,6 +214,8 @@ llm-convert \
 | `--round-key` | 轮次字段名 | round |
 | `--verbose` | 显示详细统计信息 | False |
 
+**注意：** 对于每个样本 ID，得分最高的输出作为 `chosen`，其他满足分差阈值的输出都作为 `rejected`。这意味着同一样本可以生成多条 DPO 数据，它们的 `instruction`、`input` 和 `chosen` 相同，但 `rejected` 不同。
+
 **示例：**
 ```bash
 llm-dpo \
