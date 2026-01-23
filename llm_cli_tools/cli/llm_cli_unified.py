@@ -4,6 +4,7 @@ import threading
 import argparse
 import shutil
 import re
+import time
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
@@ -154,6 +155,7 @@ def load_judge_prompt(prompt_file=None):
 
 def process_inference(item_id, messages, client, model, save_path, temperature, max_tokens, round_num=None, preserved_fields=None):
     """处理单个推理请求"""
+    start_time = time.time()
     try:
         response = client.chat.completions.create(
             model=model,
@@ -161,23 +163,36 @@ def process_inference(item_id, messages, client, model, save_path, temperature, 
             temperature=temperature,
             max_tokens=max_tokens 
         )
+        end_time = time.time()
+        inference_time = end_time - start_time
+        
+        output_text = response.choices[0].message.content
+        output_tokens = response.usage.completion_tokens if response.usage else None
+        
         result = {
             "id": item_id,
             "messages": messages,
-            "output": response.choices[0].message.content,
+            "output": output_text,
             "success": True,
+            "inference_time": inference_time,
+            "output_tokens": output_tokens,
         }
         if round_num is not None:
             result["round"] = round_num
         if preserved_fields:
             result.update(preserved_fields)
     except Exception as e:
+        end_time = time.time()
+        inference_time = end_time - start_time
+        
         result = {
             "id": item_id,
             "messages": messages,
             "output": None,
             "success": False,
             "error": str(e),
+            "inference_time": inference_time,
+            "output_tokens": None,
         }
         if round_num is not None:
             result["round"] = round_num
@@ -442,11 +457,34 @@ def run_inference(args, api_key, base_url):
     successful = sum(1 for r in final_results if r["success"])
     total = len(final_results)
     
+    # 统计推理时间和输出 token
+    inference_times = [r["inference_time"] for r in final_results if r.get("inference_time") is not None]
+    output_tokens_list = [r["output_tokens"] for r in final_results if r.get("output_tokens") is not None]
+    
     print(f"总处理数: {total}")
     print(f"成功数: {successful}")
     print(f"失败数: {total - successful}")
     if total > 0:
         print(f"成功率: {successful / total * 100:.2f}%")
+    
+    if inference_times:
+        print(f"\n=== 推理时间统计 ===")
+        print(f"平均推理时间: {sum(inference_times) / len(inference_times):.2f} 秒")
+        print(f"最短推理时间: {min(inference_times):.2f} 秒")
+        print(f"最长推理时间: {max(inference_times):.2f} 秒")
+        if len(inference_times) > 1:
+            sorted_times = sorted(inference_times)
+            print(f"中位数推理时间: {sorted_times[len(inference_times)//2]:.2f} 秒")
+    
+    if output_tokens_list:
+        print(f"\n=== 输出 Token 统计 ===")
+        print(f"平均输出 Token: {sum(output_tokens_list) / len(output_tokens_list):.2f}")
+        print(f"最少输出 Token: {min(output_tokens_list)}")
+        print(f"最多输出 Token: {max(output_tokens_list)}")
+        if len(output_tokens_list) > 1:
+            sorted_tokens = sorted(output_tokens_list)
+            print(f"中位数输出 Token: {sorted_tokens[len(output_tokens_list)//2]}")
+    
     print("=" * 60)
 
 
@@ -568,11 +606,33 @@ def run_inference_round(args, api_key, base_url):
     total = len(final_results)
     successful = sum(1 for r in final_results if r["success"])
     
+    # 统计推理时间和输出 token
+    inference_times = [r["inference_time"] for r in final_results if r.get("inference_time") is not None]
+    output_tokens_list = [r["output_tokens"] for r in final_results if r.get("output_tokens") is not None]
+    
     print(f"总处理数: {total}")
     print(f"成功数: {successful}")
     print(f"失败数: {total - successful}")
     if total > 0:
         print(f"成功率: {successful / total * 100:.2f}%")
+    
+    if inference_times:
+        print(f"\n=== 推理时间统计 ===")
+        print(f"平均推理时间: {sum(inference_times) / len(inference_times):.2f} 秒")
+        print(f"最短推理时间: {min(inference_times):.2f} 秒")
+        print(f"最长推理时间: {max(inference_times):.2f} 秒")
+        if len(inference_times) > 1:
+            sorted_times = sorted(inference_times)
+            print(f"中位数推理时间: {sorted_times[len(inference_times)//2]:.2f} 秒")
+    
+    if output_tokens_list:
+        print(f"\n=== 输出 Token 统计 ===")
+        print(f"平均输出 Token: {sum(output_tokens_list) / len(output_tokens_list):.2f}")
+        print(f"最少输出 Token: {min(output_tokens_list)}")
+        print(f"最多输出 Token: {max(output_tokens_list)}")
+        if len(output_tokens_list) > 1:
+            sorted_tokens = sorted(output_tokens_list)
+            print(f"中位数输出 Token: {sorted_tokens[len(output_tokens_list)//2]}")
     
     # 按轮次统计
     print(f"\n=== 按轮次统计 ===")
